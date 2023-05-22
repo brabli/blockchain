@@ -1,7 +1,10 @@
-use serde::{Deserialize, Serialize};
-use serde_json;
-use sha256;
+pub mod block;
+pub mod transaction;
+use stopwatch::Stopwatch;
 
+use crate::{block::Block, transaction::Transaction};
+
+#[allow(dead_code)]
 enum Difficulty {
     None,
     Easy,
@@ -41,42 +44,28 @@ fn main() {
         hash: String::from(""),
     };
 
-    let mined_block = mine_block(genesis_block, Difficulty::Easy);
-    println!("{:#?}", mined_block);
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-struct Transaction {
-    sender: String,
-    receiver: String,
-    amount: f32,
-}
-
-#[derive(Debug)]
-struct Block {
-    prev_hash: String,
-    transactions: Vec<Transaction>,
-    nonce: u32,
-    hash: String,
-}
-
-fn hash(data: &str) -> String {
-    sha256::digest(data)
+    mine_block(genesis_block, Difficulty::Easy);
 }
 
 fn mine_block(mut block: Block, difficulty: Difficulty) -> Block {
     let prefix = "0".repeat(difficulty.value());
+
+    let sw = Stopwatch::start_new();
+
     while !block.hash.starts_with(&prefix) {
+        if block.nonce % 1000 == 0 && block.nonce != 0 {
+            println!("{} hashes generated...", block.nonce);
+        }
+
         block.nonce += 1;
-        block.hash = calculate_hash(&block);
+        block.hash = block.calculate_hash();
     }
 
+    println!(
+        "Found a hash after {} attempts, taking {}ms.",
+        block.nonce,
+        sw.elapsed_ms()
+    );
+
     block
-}
-
-fn calculate_hash(block: &Block) -> String {
-    let transactions = serde_json::to_string(&block.transactions)
-        .expect("Failed to serialize block transactions!");
-
-    hash(&(block.prev_hash.to_owned() + &transactions + &block.nonce.to_string()))
 }
